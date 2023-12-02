@@ -1,0 +1,32 @@
+- Welcome the user to the app and ask for their name
+if not ~/.privvy-gpt.json
+  ask for API key
+  save API key to ~/.privvy-gpt.json
+  ask for name
+  save name to ~/.privvy-gpt.json
+  Welcome user by name
+  Ask what they want to do
+else
+  Read ~/.privvy-gpt.json
+  Welcome user by name
+  Ask what they want to do
+
+- Ask what they want to do / Available options:
+    - Create a new assistant
+    - Select an existing assistant
+    - Quit
+
+- Create a new assistant
+Enter a name for your assistant
+Enter instructions for your assistant
+
+- Select an existing assistant / List existing assistants after selection/ Available options:
+    - Create a new thread
+    - Quit
+    (List past threads like:)
+    - Thread1
+    - Thread2
+    - Thread3
+
+- Create a new thread
+Enter a name for your thread
