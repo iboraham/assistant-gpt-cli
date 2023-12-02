@@ -5,7 +5,7 @@ import time
 from typing import Callable
 
 import inquirer
-import messages
+import assistant._messages as _messages
 import openai
 from _api_wrapper import AssistantAPIWrapper
 from halo import Halo
@@ -58,7 +58,7 @@ def reset_config():
 
 def clear_screen():
     os.system("cls" if os.name == "nt" else "clear")
-    rprint(messages.ascii_logo)
+    rprint(_messages.ascii_logo)
 
 
 def welcome_user(name):
@@ -272,7 +272,7 @@ def chat(api):
 
 
 def app_exit():
-    rprint(messages.ascii_goodbye)
+    rprint(_messages.ascii_goodbye)
     return
 
 
@@ -296,9 +296,11 @@ def select_assistant(api):
 
     selected_assistant = inquirer.list_input(
         "Please select an assistant:",
-        choices=[assistant.name for assistant in assistants],
+        choices=[*[assistant.name for assistant in assistants], "Back"],
         carousel=True,
     )
+    if selected_assistant == "Back":
+        return dashboard(api)
     selected_assistant = [
         assistant for assistant in assistants if assistant.name == selected_assistant
     ][0]
@@ -308,7 +310,7 @@ def select_assistant(api):
 
 if __name__ == "__main__":
     # Print welcome message
-    rprint(messages.ascii_welcome)
+    rprint(_messages.ascii_welcome)
     time.sleep(1)
     clear_screen()
 
