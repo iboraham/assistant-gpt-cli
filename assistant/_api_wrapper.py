@@ -46,14 +46,14 @@ class AssistantAPIWrapper:
     def create_thread(self):
         self.thread = self.client.beta.threads.create()
 
-    def send_message(self, message):
-        # Send a message to the Assistant
+    def add_message_to_thread(self, message, role="user"):
         self.client.beta.threads.messages.create(
             thread_id=self.thread.id,
             role="user",
             content=message,
         )
 
+    def send_message(self):
         self.run = self.client.beta.threads.runs.create(
             thread_id=self.thread.id,
             assistant_id=self.assistant.id,
@@ -71,15 +71,18 @@ class AssistantAPIWrapper:
         )
         spinner = Halo(text="Thinking...", spinner="dots")
         spinner.start()
-        while run.status == "in_progress":
-            run = self.client.beta.threads.runs.retrieve(
-                thread_id=self.thread.id,
-                run_id=self.run.id,
-            )
-            time.sleep(3)
+        counter = 0
+        while run.status in ["in_progress", "queued"]:
+            if counter % 10 == 0:
+                run = self.client.beta.threads.runs.retrieve(
+                    thread_id=self.thread.id,
+                    run_id=self.run.id,
+                )
+                time.sleep(5)
+            counter += 1
 
         if run.status == "completed":
-            spinner.stop()
+            spinner.succeed("Done")
         else:
             spinner.fail("Error")
-            raise Exception("Error: ", run)
+            raise Exception(f"Run failed: run:{run}")

@@ -227,14 +227,21 @@ def chat(api):
     log_message_history(api.get_messages().data)
     selected_option = inquirer.list_input(
         "Please select an option",
-        choices=["Send message", "Back", "(Run)"],
+        choices=["Add message", "Send message", "Back"],
         carousel=True,
     )
 
-    if selected_option == "Send message":
+    if selected_option == "Add message":
         message = Prompt.ask("Please enter your message")
         try:
-            api.send_message(message)
+            api.add_message_to_thread(message)
+        except Exception as e:
+            handleError(e, chat, [api])
+        chat(api)
+
+    elif selected_option == "Send message":
+        try:
+            api.send_message()
         except Exception as e:
             handleError(e, chat, [api])
 
@@ -243,36 +250,6 @@ def chat(api):
     elif selected_option == "Back":
         api.thread_id = None
         threads_dashboard(api)
-    elif selected_option == "(Run)":
-        run = api.client.beta.threads.runs.create(
-            thread_id=api.thread.id,
-            assistant_id=api.assistant.id,
-        )
-        spinner = Halo(text="Thinking...", spinner="dots")
-        spinner.start()
-        counter = 0
-        while run.status in ["in_progress", "queued"]:
-            if counter % 10 == 0:
-                run = api.client.beta.threads.runs.retrieve(
-                    thread_id=api.thread.id,
-                    run_id=run.id,
-                )
-                logger.info(run)
-                time.sleep(5)
-            counter += 1
-
-        if run.status == "completed":
-            spinner.succeed("Done!")
-            chat(api)
-
-        elif run.status == "failed":
-            spinner.fail("Failed!")
-            handleError(Exception(f"Run failed: run:{run}"), chat, [api])
-
-        else:
-            spinner.fail("Error")
-            print(run)
-            handleError(Exception(f"Run failed: run:{run}"), chat, [api])
 
 
 def app_exit():
