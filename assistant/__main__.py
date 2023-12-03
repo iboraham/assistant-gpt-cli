@@ -341,8 +341,11 @@ def chat(api):
 
 
 def app_exit():
+    os.system("cls" if os.name == "nt" else "clear")
     rprint(_messages.ascii_goodbye)
-    return
+    time.sleep(1)
+    os.system("cls" if os.name == "nt" else "clear")
+    exit()
 
 
 def select_assistant(api):
