@@ -182,18 +182,26 @@ def threads_dashboard(api):
         for thread in list_threads
         if thread["assistant"] == api.assistant.id
     ]
-    choices = ["New Chat", "Back", *list_threads_ids]
+    list_threads_names = [
+        thread["thread_name"]
+        for thread in list_threads
+        if thread["assistant"] == api.assistant.id
+    ]
+    choices = ["New Chat", "Back", *list_threads_names]
     selected_option = inquirer.list_input(
         "Please select an option", choices=choices, carousel=True
     )
 
     if selected_option == "New Chat":
         clear_screen()
+        thread_name = Prompt.ask("Please enter thread name")
+        api.thread_name = thread_name
         api.create_thread()
         thread_history_write(
             {
                 "assistant": api.assistant.id,
                 "thread": api.thread.id,
+                "thread_name": api.thread_name,
                 "user": api.username,
             }
         )
@@ -202,32 +210,52 @@ def threads_dashboard(api):
         api.assistant = None
         dashboard(api)
     else:
-        thread = api.get_thread(selected_option)
+        selected_option_id = [
+            thread["thread"]
+            for thread in list_threads
+            if thread["thread_name"] == selected_option
+        ][0]
+        thread = api.get_thread(selected_option_id)
         api.thread = thread
+        api.thread_name = selected_option
         chat(api)
 
 
 def log_message_history(message_history):
     console.print("Message history:")
-    for message_object in message_history:
+    for message_object in message_history[::-1]:
         logger.info(message_object)
         message = message_object.content[0].text.value
         if message_object.role == "user":
-            console.print(f"[bold green]User:[/bold green]")
+            console.print(f"\n[bold green]User:[/bold green]")
             console.print(f"[bold green]{message}[/bold green]")
         else:
-            console.print(f"[bold blue]Assistant:[/bold blue]\n")
-            console.print(f"[bold blue]{message}[/bold blue]\n")
+            console.print(f"\n[bold blue]Assistant:[/bold blue]")
+            console.print(f"[bold blue]{message}[/bold blue]")
 
 
 def chat(api):
     assert api.assistant is not None, "No assistant selected"
     assert api.thread is not None, "No thread selected"
     clear_screen()
+    console.print(
+        f"[bold yellow]Assistant[/bold yellow]: [yellow]{api.assistant.name}[/yellow]"
+    )
+    console.print(
+        f"[bold yellow]Thread[/bold yellow]: [yellow]{api.thread_name}[/yellow]\n"
+    )
+
     log_message_history(api.get_messages().data)
+    console.print("\n")
     selected_option = inquirer.list_input(
         "Please select an option",
-        choices=["Add message", "Send message", "Back"],
+        choices=[
+            "Add message",
+            "Send message",
+            "Rename thread",
+            "Delete thread",
+            "Back",
+        ],
         carousel=True,
     )
 
@@ -249,6 +277,45 @@ def chat(api):
         chat(api)
     elif selected_option == "Back":
         api.thread_id = None
+        threads_dashboard(api)
+    elif selected_option == "Rename thread":
+        new_name = Prompt.ask("Please enter new thread name", default=api.thread_name)
+        try:
+            # Rename thread from the json file
+            thread_history = thread_history_read()
+            thread_history = [
+                thread
+                if thread["thread"] != api.thread.id
+                else {**thread, "thread_name": new_name}
+                for thread in thread_history
+            ]
+            with open(THREAD_HISTORY, "w") as f:
+                json.dump(thread_history, f)
+
+        except Exception as e:
+            handleError(e, chat, [api])
+
+        api.thread_name = new_name
+        chat(api)
+    elif selected_option == "Delete thread":
+        try:
+            # Delete thread from the json file
+            thread_history = thread_history_read()
+            thread_history = [
+                thread for thread in thread_history if thread["thread"] != api.thread.id
+            ]
+            with open(THREAD_HISTORY, "w") as f:
+                json.dump(thread_history, f)
+            # Delete thread from OpenAI
+            api.client.beta.threads.delete(thread_id=api.thread.id)
+        except Exception as e:
+            handleError(e, chat, [api])
+        console.print(
+            f"[bold green]Thread '{api.thread_name}' deleted successfully![/bold green]"
+        )
+        api.thread = None
+        api.thread_name = None
+        time.sleep(1)
         threads_dashboard(api)
 
 
