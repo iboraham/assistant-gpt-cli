@@ -156,7 +156,7 @@ def create_assistant(api):
     )
     time.sleep(1)
     clear_screen()
-    threads_dashboard(api)
+    assistant_dashboard(api)
 
 
 def thread_history_read():
@@ -261,8 +261,29 @@ def chat(api):
 
     if selected_option == "Add message":
         message = Prompt.ask("Please enter your message")
+        check_attach_file = inquirer.list_input(
+            "Would you like to attach a file?",
+            choices=["Yes", "No"],
+            carousel=True,
+        )
+        if check_attach_file == "Yes":
+            list_of_files = [
+                api.client.files.retrieve(file_id).filename
+                for file_id in api.assistant.file_ids
+            ]
+            if list_of_files == []:
+                console.print("[yellow]No files available to attach.[/yellow]")
+                time.sleep(1)
+                chat(api)
+
+            attached_file = inquirer.list_input(
+                "Please select a file", choices=list_of_files, carousel=True
+            )
+            attached_files = [attached_file]
+        else:
+            attached_files = []
         try:
-            api.add_message_to_thread(message)
+            api.add_message_to_thread(message, files=attached_files)
         except Exception as e:
             handleError(e, chat, [api])
         chat(api)
@@ -365,9 +386,26 @@ def assistant_dashboard(api):
     console.print(
         f"[bold green]Instructions[/bold green]: {api.assistant.instructions}"
     )
+    if api.assistant.file_ids != []:
+        filenames = [
+            api.client.files.retrieve(file_id).filename
+            for file_id in api.assistant.file_ids
+        ]
+        console.print(
+            f"[bold green]Files uploaded[/bold green]: {', '.join(filenames)}"
+        )
+    else:
+        console.print(f"[bold green]Files uploaded[/bold green]: No files uploaded yet")
+
     console.print()
 
-    options = ["Continue", "Edit assistant", "Delete assistant", "Back"]
+    options = [
+        "Continue",
+        "Edit assistant",
+        "Manage files",
+        "Delete assistant",
+        "Back",
+    ]
 
     selected_option = inquirer.list_input(
         f"You've selected an assistant {api.assistant.name}. What would you like to do?",
@@ -394,6 +432,10 @@ def assistant_dashboard(api):
         except Exception as e:
             handleError(e, assistant_dashboard, [api])
     elif selected_option == options[2]:
+        # Manage files
+        clear_screen()
+        files_dashboard(api, assistant_dashboard)
+    elif selected_option == options[3]:
         # Delete assistant
         api.client.beta.assistants.delete(assistant_id=api.assistant.id)
         console.print(
@@ -402,9 +444,62 @@ def assistant_dashboard(api):
         api.assistant = None
         time.sleep(1)
         dashboard(api)
-    elif selected_option == options[3]:
+    elif selected_option == options[4]:
         api.assistant = None
         dashboard(api)
+
+
+def files_dashboard(api, back: Callable = assistant_dashboard):
+    clear_screen()
+    assert api.assistant is not None, "No assistant selected"
+    list_files = [
+        api.client.files.retrieve(file_id).filename
+        for file_id in api.assistant.file_ids
+    ]
+    choices = ["New File", "Back", *["Remove file: " + file for file in list_files]]
+    selected_option = inquirer.list_input(
+        "Please select an option", choices=choices, carousel=True
+    )
+
+    if selected_option == "New File":
+        file_path = Prompt.ask("Please enter file path")
+        try:
+            try:
+                spinner = Halo(text="Uploading file...", spinner="dots").start()
+                file = api.client.files.create(
+                    file=open(file_path, "rb"), purpose="assistants"
+                )
+                spinner.succeed("File uploaded successfully!")
+                time.sleep(1)
+            except Exception as e:
+                spinner.fail("Error:")
+                raise e
+
+            # Assign file to assistant
+            api.client.beta.assistants.update(
+                assistant_id=api.assistant.id,
+                file_ids=[file.id],
+            )
+        except Exception as e:
+            handleError(e, files_dashboard, [api, back])
+        console.print(
+            f"[bold green]File '{file_path}' uploaded successfully![/bold green]"
+        )
+        time.sleep(1)
+        files_dashboard(api, back)
+    elif selected_option == "Back":
+        back(api)
+    else:
+        selected_option = selected_option.replace("Remove file: ", "")
+        try:
+            api.client.files.delete(file_id=selected_option)
+        except Exception as e:
+            handleError(e, files_dashboard, [api, back])
+        console.print(
+            f"[bold green]File '{selected_option}' removed successfully![/bold green]"
+        )
+        time.sleep(1)
+        files_dashboard(api, back)
 
 
 if __name__ == "__main__":

@@ -46,11 +46,12 @@ class AssistantAPIWrapper:
     def create_thread(self):
         self.thread = self.client.beta.threads.create()
 
-    def add_message_to_thread(self, message, role="user"):
+    def add_message_to_thread(self, message, role="user", files=[]):
         self.client.beta.threads.messages.create(
             thread_id=self.thread.id,
             role="user",
             content=message,
+            file_ids=files,
         )
 
     def send_message(self):
