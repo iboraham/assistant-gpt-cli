@@ -10,7 +10,6 @@ import openai
 from _api_wrapper import AssistantAPIWrapper
 from halo import Halo
 from openai import OpenAI
-from rich import print as rprint
 from rich.console import Console
 from rich.prompt import Prompt
 
@@ -58,11 +57,11 @@ def reset_config():
 
 def clear_screen():
     os.system("cls" if os.name == "nt" else "clear")
-    rprint(_messages.ascii_logo)
+    console.print(_messages.ascii_logo)
 
 
 def welcome_user(name):
-    rprint(f"[bold green]Welcome, {name}![/bold green]")
+    console.print(f"[bold green]Welcome, {name}![/bold green]")
 
 
 def main():
@@ -342,7 +341,7 @@ def chat(api):
 
 def app_exit():
     os.system("cls" if os.name == "nt" else "clear")
-    rprint(_messages.ascii_goodbye)
+    console.print(_messages.ascii_goodbye)
     time.sleep(1)
     os.system("cls" if os.name == "nt" else "clear")
     exit()
@@ -507,7 +506,7 @@ def files_dashboard(api, back: Callable = assistant_dashboard):
 
 if __name__ == "__main__":
     # Print welcome message
-    rprint(_messages.ascii_welcome)
+    console.print(_messages.ascii_welcome)
     time.sleep(1)
     clear_screen()
 
