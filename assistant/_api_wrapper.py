@@ -22,6 +22,21 @@ class AssistantAPIWrapper:
             instructions=instructions,
         )
 
+    def edit_assistant(
+        self,
+        name,
+        description=None,
+        model="gpt-4-vision-preview",
+        instructions=None,
+    ):
+        self.assistant = self.client.beta.assistants.update(
+            assistant_id=self.assistant.id,
+            name=name,
+            description=description,
+            model=model,
+            instructions=instructions,
+        )
+
     def list_assistants(self):
         return self.client.beta.assistants.list()
 

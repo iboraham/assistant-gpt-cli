@@ -110,7 +110,7 @@ def main():
 
 def dashboard(api: AssistantAPIWrapper):
     clear_screen()
-    options = ["Create Assistant", "Select Existent Assistant", "Quit"]
+    options = ["Create a new assistant", "Manage an existent assistant", "Quit"]
     selected_option = inquirer.list_input(
         "Please select an option", choices=options, carousel=True
     )
@@ -177,7 +177,11 @@ def threads_dashboard(api):
     clear_screen()
     assert api.assistant is not None, "No assistant selected"
     list_threads = thread_history_read()
-    list_threads_ids = [thread["thread"] for thread in list_threads]
+    list_threads_ids = [
+        thread["thread"]
+        for thread in list_threads
+        if thread["assistant"] == api.assistant.id
+    ]
     choices = ["New Chat", "Back", *list_threads_ids]
     selected_option = inquirer.list_input(
         "Please select an option", choices=choices, carousel=True
@@ -305,7 +309,58 @@ def select_assistant(api):
         assistant for assistant in assistants if assistant.name == selected_assistant
     ][0]
     api.assistant = selected_assistant
-    threads_dashboard(api)
+    assistant_dashboard(api)
+
+
+def assistant_dashboard(api):
+    clear_screen()
+
+    console.print(f"[bold green]Assistant[/bold green]: {api.assistant.name}")
+    console.print(f"[bold green]Description[/bold green]: {api.assistant.description}")
+    console.print(f"[bold green]Model[/bold green]: {api.assistant.model}")
+    console.print(
+        f"[bold green]Instructions[/bold green]: {api.assistant.instructions}"
+    )
+    console.print()
+
+    options = ["Continue", "Edit assistant", "Delete assistant", "Back"]
+
+    selected_option = inquirer.list_input(
+        f"You've selected an assistant {api.assistant.name}. What would you like to do?",
+        choices=options,
+        carousel=True,
+    )
+
+    if selected_option == options[0]:
+        threads_dashboard(api)
+    elif selected_option == options[1]:
+        # Edit assistant
+        name = Prompt.ask("Please enter assistant name", default=api.assistant.name)
+        description = Prompt.ask(
+            "Please enter assistant description", default=api.assistant.description
+        )
+        model = Prompt.ask("Please enter assistant model", default=api.assistant.model)
+        instructions = Prompt.ask(
+            "Please enter assistant instructions",
+            default=api.assistant.instructions,
+        )
+
+        try:
+            api.edit_assistant(name, description, model, instructions)
+        except Exception as e:
+            handleError(e, assistant_dashboard, [api])
+    elif selected_option == options[2]:
+        # Delete assistant
+        api.client.beta.assistants.delete(assistant_id=api.assistant.id)
+        console.print(
+            f"[bold green]Assistant '{api.assistant.name}' deleted successfully![/bold green]"
+        )
+        api.assistant = None
+        time.sleep(1)
+        dashboard(api)
+    elif selected_option == options[3]:
+        api.assistant = None
+        dashboard(api)
 
 
 if __name__ == "__main__":
