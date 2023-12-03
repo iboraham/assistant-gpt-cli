@@ -4,8 +4,8 @@ import os
 import time
 from typing import Callable
 
+import _messages
 import inquirer
-import assistant._messages as _messages
 import openai
 from _api_wrapper import AssistantAPIWrapper
 from halo import Halo
