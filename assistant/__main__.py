@@ -15,8 +15,8 @@ from rich.console import Console
 from rich.prompt import Prompt
 
 # Constants and Setup
-CONFIG_FILE = os.path.expanduser("~/.privvy-gpt.json")
-THREAD_HISTORY = os.path.expanduser("~/.privvy-gpt-threads.json")
+CONFIG_FILE = os.path.expanduser("~/.assistant-gpt-key.json")
+THREAD_HISTORY = os.path.expanduser("~/.assistant-gpt-threads.json")
 console = Console()
 logger = logging.getLogger(__name__)
 
