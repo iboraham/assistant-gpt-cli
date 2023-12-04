@@ -13,13 +13,20 @@ class AssistantAPIWrapper:
         self.username = username
 
     def create_assistant(
-        self, name, description=None, model="gpt-4-vision-preview", instructions=None
+        self,
+        name,
+        description=None,
+        model="gpt-4-vision-preview",
+        instructions=None,
+        tools=[],
     ):
+        tools_converted = [{"type": tool} for tool in tools]
         self.assistant = self.client.beta.assistants.create(
             name=name,
             description=description,
             model=model,
             instructions=instructions,
+            tools=tools_converted,
         )
 
     def edit_assistant(
@@ -28,13 +35,16 @@ class AssistantAPIWrapper:
         description=None,
         model="gpt-4-vision-preview",
         instructions=None,
+        tools=[],
     ):
+        tools_converted = [{"type": tool} for tool in tools]
         self.assistant = self.client.beta.assistants.update(
             assistant_id=self.assistant.id,
             name=name,
             description=description,
             model=model,
             instructions=instructions,
+            tools=tools_converted,
         )
 
     def list_assistants(self):

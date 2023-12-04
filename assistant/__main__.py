@@ -12,6 +12,7 @@ from halo import Halo
 from openai import OpenAI
 from rich.console import Console
 from rich.prompt import Prompt
+from PIL import Image
 
 # Constants and Setup
 CONFIG_FILE = os.path.expanduser("~/.assistant-gpt-key.json")
@@ -140,12 +141,14 @@ def create_assistant(api):
     assistant_name = Prompt.ask("Please enter assistant name")
     assistant_description = Prompt.ask("Please enter assistant description")
     assistant_instructions = Prompt.ask("Please enter assistant instructions")
+    assistant_tools = _input_tools()
     try:
         api.create_assistant(
             assistant_name,
             assistant_description,
             assistant_model,
             assistant_instructions,
+            assistant_tools,
         )
     except Exception as e:
         handleError(e, dashboard, [api])
@@ -156,6 +159,26 @@ def create_assistant(api):
     time.sleep(1)
     clear_screen()
     assistant_dashboard(api)
+
+
+def _input_tools():
+    assistant_tools = inquirer.list_input(
+        "Please select assistant tools",
+        choices=[
+            "code_interpreter",
+            "retrieval",
+            "both",
+            "none",
+        ],
+        carousel=True,
+    )
+    if assistant_tools == "none":
+        assistant_tools = []
+    elif assistant_tools == "both":
+        assistant_tools = ["code_interpreter", "retrieval"]
+    else:
+        assistant_tools = [assistant_tools]
+    return assistant_tools
 
 
 def thread_history_read():
@@ -220,17 +243,46 @@ def threads_dashboard(api):
         chat(api)
 
 
-def log_message_history(message_history):
+def log_message_history(message_history, api):
     console.print("Message history:")
     for message_object in message_history[::-1]:
         logger.info(message_object)
-        message = message_object.content[0].text.value
-        if message_object.role == "user":
-            console.print(f"\n[bold green]User:[/bold green]")
-            console.print(f"[bold green]{message}[/bold green]")
-        else:
-            console.print(f"\n[bold blue]Assistant:[/bold blue]")
-            console.print(f"[bold blue]{message}[/bold blue]")
+        for message_content in message_object.content:
+            if message_content.type == "text":
+                if message_object.role == "user":
+                    console.print(f"\n[bold green]User:[/bold green]")
+                    console.print(
+                        f"[italic green]{message_content.text.value}[/italic green]"
+                    )
+                    if message_object.file_ids != []:
+                        filenames = [
+                            api.client.files.retrieve(file_id).filename
+                            for file_id in message_object.file_ids
+                        ]
+                        console.print(
+                            f"([bold green]Files attached:[/bold green] {', '.join(filenames)})"
+                        )
+                else:
+                    console.print(f"\n[bold blue]Assistant:[/bold blue]")
+                    console.print(
+                        f"[italic blue]{message_content.text.value}[/italic blue]"
+                    )
+            elif message_content.type == "image_file":
+                console.print(f"\n[bold blue]Assistant:[/bold blue]")
+                console.print(
+                    f"[italic blue]Image file: {message_content.image_file.file_id}.png[/italic blue]"
+                )
+                file_content = api.client.files.with_raw_response.retrieve_content(
+                    file_id=message_content.image_file.file_id
+                ).content
+                # Convert file content to bytes from string
+                open(f"{message_content.image_file.file_id}.png", "wb").write(
+                    file_content
+                )
+
+                # Open image
+                image = Image.open(f"{message_content.image_file.file_id}.png")
+                image.show()
 
 
 def chat(api):
@@ -244,7 +296,7 @@ def chat(api):
         f"[bold yellow]Thread[/bold yellow]: [yellow]{api.thread_name}[/yellow]\n"
     )
 
-    log_message_history(api.get_messages().data)
+    log_message_history(api.get_messages().data, api)
     console.print("\n")
     selected_option = inquirer.list_input(
         "Please select an option",
@@ -278,11 +330,23 @@ def chat(api):
             attached_file = inquirer.list_input(
                 "Please select a file", choices=list_of_files, carousel=True
             )
-            attached_files = [attached_file]
+            # Convert filename to file_id
+            attached_files = [
+                file_id
+                for file_id in api.assistant.file_ids
+                if api.client.files.retrieve(file_id).filename == attached_file
+            ]
+            console.print(
+                f"[bold green]File '{attached_file}' attached successfully![/bold green]"
+            )
         else:
             attached_files = []
         try:
             api.add_message_to_thread(message, files=attached_files)
+            console.print(
+                f"[bold green]Message '{message}' added successfully![/bold green]"
+            )
+            time.sleep(1)
         except Exception as e:
             handleError(e, chat, [api])
         chat(api)
@@ -388,6 +452,7 @@ def assistant_dashboard(api):
     console.print(
         f"[bold green]Instructions[/bold green]: {api.assistant.instructions}"
     )
+    console.print(f"[bold green]Tools[/bold green]: {api.assistant.tools}")
     if api.assistant.file_ids != []:
         filenames = [
             api.client.files.retrieve(file_id).filename
@@ -428,9 +493,14 @@ def assistant_dashboard(api):
             "Please enter assistant instructions",
             default=api.assistant.instructions,
         )
-
+        tools = _input_tools()
         try:
-            api.edit_assistant(name, description, model, instructions)
+            api.edit_assistant(name, description, model, instructions, tools)
+            console.print(
+                f"[bold green]Assistant '{api.assistant.name}' edited successfully![/bold green]"
+            )
+            time.sleep(1)
+            assistant_dashboard(api)
         except Exception as e:
             handleError(e, assistant_dashboard, [api])
     elif selected_option == options[2]:
@@ -478,7 +548,7 @@ def files_dashboard(api, back: Callable = assistant_dashboard):
                 raise e
 
             # Assign file to assistant
-            api.client.beta.assistants.update(
+            api.assistant = api.client.beta.assistants.update(
                 assistant_id=api.assistant.id,
                 file_ids=[file.id],
             )
