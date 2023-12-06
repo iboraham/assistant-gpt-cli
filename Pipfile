@@ -10,6 +10,7 @@ halo = "*"
 inquirer = "*"
 rich = "*"
 pyfiglet = "*"
+pillow = "*"
 
 [dev-packages]
 
