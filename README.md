@@ -41,13 +41,13 @@ Whether you're a tech enthusiast exploring the capabilities of AI, a cost-sensit
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/iboraham/assistantGPT-cli.git
+   git clone https://github.com/iboraham/assistant-gpt-cli.git
    ```
 
 2. Navigate to the app directory:
 
    ```bash
-   cd assistantGPT-cli
+   cd assistant-gpt-cli
    ```
 
 3. Install the required packages:
@@ -105,7 +105,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 Onur Serbetci - [@iboraham](https://twitter.com/iboraham) - ionurserbetci@gmail.com
 
-Project Link: [https://github.com/iboraham/assistantGPT-cli](https://github.com/iboraham/assistantGPT-cli)
+Project Link: [https://github.com/iboraham/assistant-gpt-cli](https://github.com/iboraham/assistant-gpt-cli)
 
 ## Acknowledgements
 
