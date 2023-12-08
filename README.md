@@ -103,7 +103,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 ## Contact
 
-Onur Serbetci - [@iboraham](https://twitter.com/iboraham) - ionurserbetci@gmail.com
+Onur Serbetci - [@iboraham](https://twitter.com/iboraham)
 
 Project Link: [https://github.com/iboraham/assistant-gpt-cli](https://github.com/iboraham/assistant-gpt-cli)
 
