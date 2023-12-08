@@ -1,3 +1,4 @@
+import argparse
 import logging
 import time
 
@@ -83,15 +84,12 @@ if __name__ == "__main__":
     time.sleep(1)
     clear_screen()
 
-    debug = (
-        inquirer.list_input(
-            "Would you like to enable debug mode?", choices=["Yes", "No"], carousel=True
-        )
-        == "Yes"
-    )
-    clear_screen()
+    # Argument parsing
+    parser = argparse.ArgumentParser(description="Run the assistant program.")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    args = parser.parse_args()
 
-    if debug:
+    if args.debug:
         logging.basicConfig(level=logging.INFO)
 
     main()
