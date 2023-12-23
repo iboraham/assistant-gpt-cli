@@ -4,6 +4,8 @@
 
 This app harnesses the advanced capabilities of OpenAI's GPT-4 to provide an intuitive and engaging experience right from your terminal. Whether you're a developer, a writer, or just an AI enthusiast, Assistant-GPT offers a unique blend of functionality and fun. Get ready to dive into a world where AI assistance is just a command away!
 
+![Assistant-GPT CLI Application Demo](./docs/assistant-gpt.gif)
+
 ## Features
 
 - 🧠 **GPT-4 Powered**: Leverage the latest in AI technology for various tasks.
