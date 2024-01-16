@@ -1,37 +1,51 @@
+import json
 import time
 from typing import Callable
 
 import inquirer
 from halo import Halo
 from rich.prompt import Prompt
+import re
 
 from .error_handling import handleError
 from .ui_utils import clear_screen, console
 
 
-def _input_tools():
+def _input_tools(tools=None):
     """
     Handles the input for selecting assistant tools.
 
     Returns:
         List[str]: A list of selected tools.
     """
-    assistant_tools = inquirer.list_input(
+    if not tools:
+        tools = []
+
+    assistant_tools = inquirer.checkbox(
         "Please select assistant tools",
         choices=[
             "code_interpreter",
             "retrieval",
-            "both",
-            "none",
+            "function"
         ],
         carousel=True,
+        default=[tool.type for tool in tools]
     )
-    if assistant_tools == "none":
-        return []
-    elif assistant_tools == "both":
-        return ["code_interpreter", "retrieval"]
-    else:
-        return [assistant_tools]
+
+
+    func_definition = {}
+    if 'function' in assistant_tools:
+        existing_func = next(filter(lambda t: t.type == 'function', tools), {})
+        func_definition['name'] = Prompt.ask('Please enter function name', default=existing_func.name if existing_func else None)
+        func_definition['description'] = Prompt.ask('Please enter function description', default=existing_func.description if existing_func else None)
+        func_params = Prompt.ask('Please enter function parameters in JSON format', default=json.dumps(existing_func.parameters) if existing_func else None)
+        func_definition['parameters'] = json.loads(func_params)
+
+    res = [
+        {'type': tool, 'function': func_definition} if tool == 'function' else {'type': tool}
+        for tool in assistant_tools
+    ]
+    return res
 
 
 def create_assistant(api):
@@ -95,6 +109,7 @@ def display_assistant_details(api):
         api: API object to interact with the backend.
     """
     console.print(f"[bold green]Assistant[/bold green]: {api.assistant.name}")
+    console.print(f"[bold green]Assistant ID[/bold green]: {api.assistant.id}")
     console.print(f"[bold green]Description[/bold green]: {api.assistant.description}")
     console.print(f"[bold green]Model[/bold green]: {api.assistant.model}")
     console.print(
@@ -177,7 +192,7 @@ def edit_assistant(api):
         "Please enter assistant instructions",
         default=api.assistant.instructions,
     )
-    tools = _input_tools()
+    tools = _input_tools(api.assistant.tools)
 
     # Attempt to edit the assistant
     try:
@@ -231,7 +246,7 @@ def manage_file_options(api, back: Callable):
         back (Callable): Function to call when navigating back.
     """
     list_files = get_uploaded_files(api)
-    choices = ["New File", "Back", *["Remove file: " + file for file in list_files]]
+    choices = ["New File", "Back", *["Remove file: " + file[0] + ' (' + 'id: ' + file[1] + ')' for file in list_files]]
     selected_option = inquirer.list_input(
         "Please select an option", choices=choices, carousel=True
     )
@@ -254,8 +269,14 @@ def get_uploaded_files(api):
     Returns:
         List[str]: List of uploaded filenames.
     """
+    files = api.client.beta.assistants.files.list(
+        assistant_id=api.assistant.id
+    )
+
+    api.assistant.file_ids = [file.id for file in files]
+
     return [
-        api.client.files.retrieve(file_id).filename
+        (api.client.files.retrieve(file_id).filename, file_id)
         for file_id in api.assistant.file_ids
     ]
 
@@ -270,12 +291,21 @@ def upload_new_file(api, back: Callable):
     """
     file_path = Prompt.ask("Please enter file path")
     try:
-        upload_file(api, file_path)
-        console.print(
-            f"[bold green]File '{file_path}' uploaded successfully![/bold green]"
-        )
+        file = upload_file(api, file_path)
+
+        with Halo(text="Attaching file...", spinner="dots") as spinner:
+            # Attach file to assistant
+            api.client.beta.assistants.files.create(
+                assistant_id=api.assistant.id,
+                file_id=file.id,
+            )
+            spinner.succeed(
+                f"[bold green]File '{file_path}' attached successfully![/bold green]"
+            )
+
     except Exception as e:
         handleError(e, files_dashboard, [api, back])
+        api.assistant = api.get_assistants(assistant_id=api.assistant.id)
     finally:
         time.sleep(1)
         files_dashboard(api, back)
@@ -296,11 +326,7 @@ def upload_file(api, file_path):
             )
             spinner.succeed("File uploaded successfully!")
 
-            # Assign file to assistant
-            api.assistant = api.client.beta.assistants.update(
-                assistant_id=api.assistant.id,
-                file_ids=[file.id],
-            )
+            return file
         except Exception as e:
             spinner.fail("Error:")
             raise e
@@ -315,11 +341,15 @@ def remove_selected_file(api, selected_option, back: Callable):
         selected_option (str): The file to be removed.
         back (Callable): Function to call when navigating back.
     """
-    file_to_remove = selected_option.replace("Remove file: ", "")
+    file_id = re.sub('[)]$', '', re.sub('.*[(]id:\\s*', '', selected_option))
+    file_name = re.sub('\s[(]id:\s.*[)]$', '', re.sub('^Remove file: ', '', selected_option))
     try:
-        api.client.files.delete(file_id=file_to_remove)
+        api.client.beta.assistants.files.delete(
+            assistant_id=api.assistant.id,
+            file_id=file_id
+        )
         console.print(
-            f"[bold green]File '{file_to_remove}' removed successfully![/bold green]"
+            f"[bold green]File '{file_name}' removed successfully![/bold green]"
         )
     except Exception as e:
         handleError(e, files_dashboard, [api, back])

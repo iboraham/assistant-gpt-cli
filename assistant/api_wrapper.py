@@ -18,29 +18,25 @@ class AssistantAPIWrapper:
         self.run = None
         self.username = username
 
-    def _convert_tools(self, tools):
-        """
-        Converts a list of tool names into the format required by the OpenAI API.
-        """
-        return [{"type": tool} for tool in tools]
-
     def create_assistant(
         self,
         name,
         description=None,
         model="gpt-4-vision-preview",
         instructions=None,
-        tools=[],
+        tools=None,
     ):
         """
         Creates a new assistant with the specified parameters.
         """
+        if tools is None:
+            tools = []
         self.assistant = self.client.beta.assistants.create(
             name=name,
             description=description,
             model=model,
             instructions=instructions,
-            tools=self._convert_tools(tools),
+            tools=tools,
         )
 
     def edit_assistant(
@@ -49,18 +45,20 @@ class AssistantAPIWrapper:
         description=None,
         model="gpt-4-vision-preview",
         instructions=None,
-        tools=[],
+        tools=None,
     ):
         """
         Edits the existing assistant with new parameters.
         """
+        if tools is None:
+            tools = []
         self.assistant = self.client.beta.assistants.update(
             assistant_id=self.assistant.id,
             name=name,
             description=description,
             model=model,
             instructions=instructions,
-            tools=self._convert_tools(tools),
+            tools=tools,
         )
 
     def list_assistants(self):
@@ -68,6 +66,12 @@ class AssistantAPIWrapper:
         Retrieves a list of all assistants.
         """
         return self.client.beta.assistants.list()
+
+    def get_assistants(self, assistant_id):
+        """
+        Retrieves a assistants.
+        """
+        return self.client.beta.assistants.retrieve(assistant_id=assistant_id)
 
     def get_thread(self, thread_id):
         """
