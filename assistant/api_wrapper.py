@@ -18,12 +18,6 @@ class AssistantAPIWrapper:
         self.run = None
         self.username = username
 
-    def _convert_tools(self, tools):
-        """
-        Converts a list of tool names into the format required by the OpenAI API.
-        """
-        return [{"type": tool} for tool in tools]
-
     def create_assistant(
         self,
         name,
