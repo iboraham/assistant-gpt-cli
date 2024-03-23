@@ -1,6 +1,49 @@
 import time
+
 from halo import Halo
-from openai import OpenAI
+from openai import AssistantEventHandler, OpenAI
+from typing_extensions import override
+
+from .ui_utils import clear_screen, console
+
+
+class EventHandler(AssistantEventHandler):
+    @override
+    def on_text_created(self, text) -> None:
+        clear_screen()
+        console.print(
+            f"\n[bold blue]Assistant:[/bold blue]\n",
+            end="",
+        )
+
+    @override
+    def on_text_delta(self, delta, snapshot):
+        console.print(
+            f"[italic blue]{delta.value}[/italic blue]",
+            end="",
+        )
+
+    def on_tool_call_created(self, tool_call):
+        console.print(
+            f"\n[bold blue]Assistant:[/bold blue] {tool_call.type}\n",
+        )
+
+    def on_tool_call_delta(self, delta, snapshot):
+        if delta.type == "code_interpreter":
+            if delta.code_interpreter.input:
+                console.print(
+                    delta.code_interpreter.input,
+                    end="",
+                )
+            if delta.code_interpreter.outputs:
+                console.print(
+                    f"\n\noutput >",
+                )
+                for output in delta.code_interpreter.outputs:
+                    if output.type == "logs":
+                        console.print(
+                            f"\n{output.logs}",
+                        )
 
 
 class AssistantAPIWrapper:
@@ -105,14 +148,27 @@ class AssistantAPIWrapper:
             assistant_id=self.assistant.id,
         )
 
+    def send_message_and_stream(self):
+        """
+        Sends a message via the assistant in the current thread and streams the response.
+        """
+        with self.client.beta.threads.runs.create_and_stream(
+            thread_id=self.thread.id,
+            assistant_id=self.assistant.id,
+            event_handler=EventHandler(),
+        ) as stream:
+            stream.until_done()
+
     def get_messages(self):
         """
         Retrieves all messages from the current thread.
         """
         return self.client.beta.threads.messages.list(thread_id=self.thread.id)
 
-    def check_run_status(self):
+    def _check_run_status(self):
         """
+        !Depreciated: Use send_message_and_stream instead.
+
         Checks and waits for the run status to complete, with a spinner for user feedback.
         """
         run = self.client.beta.threads.runs.retrieve(

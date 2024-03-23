@@ -325,8 +325,9 @@ def handle_send_message(api):
         api: API object to interact with the backend.
     """
     try:
-        api.send_message()
-        api.check_run_status()
+        # api.send_message()
+        # api.check_run_status()
+        api.send_message_and_stream()
     except Exception as e:
         handleError(e, chat, [api])
     finally:
